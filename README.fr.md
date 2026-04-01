@@ -1,10 +1,22 @@
-# 🎣 ArchiDexFishing
+# 🎣 ArchiFishDex
 
 🇬🇧 *[Lire cette documentation en anglais](./README.md)*
 
 > **Un projet fullstack interactif permettant aux viewers Twitch de pêcher, collectionner et suivre leurs Pokémon aquatiques en temps réel via un Pokédex personnel.**
 
-ArchiDexFishing fonctionne en synergie avec le jeu de pêche **[Lurk Bait Twitch Fishing](https://blam.cam/)**, qui a été lourdement customisé pour l'occasion. Lorsqu'un viewer capture un Pokémon sur le stream, le jeu l'annonce dans le chat. L'écosystème intercepte ce message, l'enregistre, calcule les succès en temps réel, et le viewer peut immédiatement admirer sa prise, ses statistiques et son classement sur l'interface web dédiée !
+---
+
+## 🎮 Le concept : Lurk Bait & ArchiFishDex
+
+L'expérience repose sur le jeu **[Lurk Bait](https://blam.cam/)**, un système de pêche automatique intégré aux streams Twitch. 
+
+**Comment ça marche pour le viewer ?**
+* Le viewer lance sa ligne via la commande `!fish` ou via des actions automatiques déclenchées par **Twitchat** (système de triggers personnalisés que j'ai configurés pour automatiser les interactions).
+* Lorsqu'un Pokémon "mord", le jeu annonce la capture dans le chat avec son poids et sa valeur.
+* **La contrainte :** Pour consulter son Pokédex ou le classement général en direct, l'affichage en jeu bloque le flux visuel du stream pour l'ensemble de la communauté.
+
+**Le rôle d'ArchiFishDex :**
+J'ai conçu cet écosystème pour offrir une **consultation asynchrone**. Les viewers peuvent suivre leur progression, admirer leurs succès et comparer leurs scores sur l'application web dédiée (via mobile ou second écran), sans jamais interrompre le live et/ou la pèche pour les autres participants.
 
 ---
 
@@ -53,6 +65,18 @@ Le dépôt monorepo est divisé en trois dossiers principaux :
 ## <a id="fonctionnalites-du-front"></a>✨ Fonctionnalités du Front (Application Web)
 
 L'application web est le véritable tableau de bord pour les viewers, offrant une expérience riche et détaillée :
+
+### 🔐 Authentification & Sécurité (Twitch OAuth)
+Pour garantir une expérience personnalisée et sécurisée, l'application intègre l'authentification officielle **Twitch OAuth2** :
+* **Connexion unique** : Les viewers se connectent via leur compte Twitch pour accéder à leur Pokédex personnel.
+* **Persistance des données** : Le backend fait le lien entre le nom d'utilisateur unique Twitch et les captures stockées en base de données (MongoDB).
+* **Expérience utilisateur** : Cette intégration permet une synchronisation parfaite entre l'activité sur le chat (la pêche) et la visualisation sur le site (la collection).
+
+### 👤 Gestion des Profils Utilisateurs
+Le système assure la cohérence des données via une création de profil hybride basée sur le nom d'utilisateur Twitch unique :
+* **Création par l'action** : Si un nouveau viewer pêche un Pokémon, son profil est instantanément généré en base de données pour enregistrer sa capture.
+* **Création par l'Auth** : Si un viewer se connecte au site avant de pêcher, son profil est créé via le flux **Twitch OAuth2**.
+* **Mapping Unique** : L'authentification permet de faire le lien sécurisé entre la session web et les données de capture stockées en base (MongoDB).
 
 ### 📖 Pokédex personnel
 Visualisation de tous les Pokémon capturés par l'utilisateur (incluant les versions *shiny*). Pour inciter à la collection, **tous les Pokémon du jeu sont affichés, mais ceux qui n'ont pas encore été capturés apparaissent sous forme de silhouette noire**, rappelant le fameux *"Who's that Pokémon ?"*.
