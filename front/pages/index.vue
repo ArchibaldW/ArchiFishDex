@@ -22,7 +22,7 @@ const redirectUrl = `https://id.twitch.tv/oauth2/authorize?response_type=code&cl
 
     <div v-else class="welcome">
       <h1 class="welcome__title">Bienvenue {{ user.username }} ! 🎉</h1>
-      <p class="welcome__subtitle">Votre aventure de Pêcheur de Pokémon t'attend</p>
+      <p class="welcome__subtitle">Ton aventure de Pêcheur de Pokémon t'attend</p>
       <v-btn 
         to="/fishing"
         size="large"
