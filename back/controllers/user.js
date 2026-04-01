@@ -155,6 +155,7 @@ exports.getUserAchievements = async (req, res) => {
     const users = await User.find({}).lean();
 
     const achievements = await Achievement.find({}).lean();
+    achievements.sort((a, b) => a.number - b.number);
 
     const usersWithAchievements = users.filter(u => u.achievements && u.achievements.length > 0);
     const totalUsersWithAchievements = usersWithAchievements.length;
