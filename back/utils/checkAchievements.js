@@ -200,8 +200,8 @@ const checkAchievements = async function(user) {
     // 26 : Catch 250 pokémons
     // 27 : Catch 500 pokémons
     // 28 : Catch 1000 pokémons
-    if ([22, 23, 24, 25, 26, 27].some(num => !userUnlockedAchievements.includes(num))) {
-        const thresholds = [[22, 10], [23, 50], [24, 50], [25, 100], [26, 250], [27, 500], [28, 1000]];
+    if ([22, 23, 24, 25, 26, 27, 28].some(num => !userUnlockedAchievements.includes(num))) {
+        const thresholds = [[22, 10], [23, 25], [24, 50], [25, 100], [26, 250], [27, 500], [28, 1000]];
         thresholds.forEach(([num, req]) => {
             if (!userUnlockedAchievements.includes(num) && user.catches.length >= req){
                 unlock(num)
