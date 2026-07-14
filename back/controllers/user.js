@@ -7,32 +7,44 @@ const checkAchievements = require('../utils/checkAchievements.js')
 
 exports.getUserPokedex = async (req, res) => {
   try {
-    const [userCatches, catches] = await Promise.all([
-      UserCatch.find({ username: req.user.username }).lean(),
-      Catch.find({}).lean()
+    const catches = await Catch.find({}).lean();
+
+    const stats = await UserCatch.aggregate([
+      { $match: { username: req.user.username } },
+      {
+        $group: {
+          _id: { code: "$code", shiny: "$shiny" },
+          count: { $sum: 1 },
+          maxValue: { $max: "$value" }
+        }
+      }
     ]);
 
-    const normalCounts = new Map();
-    const shinyCounts = new Map();
+    const normalData = new Map();
+    const shinyData = new Map();
 
-    userCatches.forEach(c => {
-      const targetMap = c.shiny ? shinyCounts : normalCounts;
-      const currentCount = targetMap.get(c.code) || 0;
-      targetMap.set(c.code, currentCount + 1);
+    stats.forEach(s => {
+      const targetMap = s._id.shiny ? shinyData : normalData;
+      targetMap.set(s._id.code, { 
+        count: s.count, 
+        maxValue: s.maxValue 
+      });
     });
 
-    const pokedex = catches.map(
-      p => (
-        {
-          ...p,
-          countNormal: normalCounts.get(p.code) || 0,
-          countShiny: shinyCounts.get(p.code) || 0,
+    const pokedex = catches.map(p => {
+      const normal = normalData.get(p.code) || { count: 0, maxValue: 0 };
+      const shiny = shinyData.get(p.code) || { count: 0, maxValue: 0 };
 
-          caughtNormal: normalCounts.has(p.code),
-          caughtShiny: shinyCounts.has(p.code)
-        }
-      )
-    );
+      return {
+        ...p,
+        countNormal: normal.count,
+        maxWeightNormal: normal.maxValue, // Info ajoutée
+        countShiny: shiny.count,
+        maxWeightShiny: shiny.maxValue,   // Info ajoutée
+        caughtNormal: normal.count > 0,
+        caughtShiny: shiny.count > 0
+      };
+    });
 
     return res.status(200).json(pokedex);
   } catch (err) {
@@ -265,7 +277,7 @@ exports.addUserCatch = async (req, res) => {
     }
 
     const {achievementsOwned, user : newUser} = await checkAchievements(user, session)
-    
+
     const newCatch = new UserCatch(catchData);
 
     await newUser.save({ session })
