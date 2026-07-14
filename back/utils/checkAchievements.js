@@ -1,3 +1,4 @@
+const UserCatch = require('../models/UserCatch');
 const Catch = require('../models/Catch');
 const Achievement = require('../models/Achievement');
 
@@ -14,17 +15,18 @@ const starters = [
 ]
 const megas = ["0009m", "0080m", "0130m", "0260m", "0319m", "0382p"];
 
-const checkAchievements = async function(user) {
-    const catches = await Catch.find({}).lean();
-    const achievementsList = await Achievement.find({}).lean();
+const checkAchievements = async function(user, session) {
+    const userAllCatches = await UserCatch.find({username: user.username}).session(session).lean();
+    const catches = await Catch.find({}).session(session).lean();
+    const achievementsList = await Achievement.find({}).session(session).lean();
     achievementsList.sort((a, b) => a.number - b.number)
 
     const userUnlockedAchievements = user.achievements.map(a => a.number);
 
     const catchesMap = new Map(catches.map(c => [c.code, c]));
-    const userUniqueCatches = new Set(user.catches.map(c => c.code));
+    const userUniqueCatches = new Set(userAllCatches.map(c => c.code));
 
-    const userCatches = user.catches.map(uc => {
+    const userCatches = userAllCatches.map(uc => {
         const matchingCatch = catchesMap.get(uc.code) || {};
         return {
             ...uc,
@@ -57,7 +59,7 @@ const checkAchievements = async function(user) {
 
     // 2 : Catch a shiny
     if (!userUnlockedAchievements.includes(2)){
-        if (user.catches.some(c => c.shiny)) {
+        if (userAllCatches.some(c => c.shiny)) {
             unlock(2)
         }
     }
@@ -124,7 +126,7 @@ const checkAchievements = async function(user) {
     // 14 : Catch a same pokemon twenty times
     // 15 : Catch a same pokemon fifty times
     if ([11, 12, 13, 14, 15].some(num => !userUnlockedAchievements.includes(num))) {
-        const counts = user.catches.reduce((acc, element) => {
+        const counts = userAllCatches.reduce((acc, element) => {
             const key = `${element.code}|${element.shiny}`;
             acc.set(key, (acc.get(key) || 0) +1)
             return acc;
@@ -144,7 +146,7 @@ const checkAchievements = async function(user) {
     // 16 : Catch a same shiny pokemon twice
     // 17 : Catch a same shiny pokemon ten times
     if ([16, 17].some(num => !userUnlockedAchievements.includes(num))) {
-        const counts = user.catches.filter(element => element.shiny === true).reduce((acc, element) => {
+        const counts = userAllCatches.filter(element => element.shiny === true).reduce((acc, element) => {
             const key = `${element.code}`;
             acc.set(key, (acc.get(key) || 0) +1)
             return acc;
@@ -203,7 +205,7 @@ const checkAchievements = async function(user) {
     if ([22, 23, 24, 25, 26, 27, 28].some(num => !userUnlockedAchievements.includes(num))) {
         const thresholds = [[22, 10], [23, 25], [24, 50], [25, 100], [26, 250], [27, 500], [28, 1000]];
         thresholds.forEach(([num, req]) => {
-            if (!userUnlockedAchievements.includes(num) && user.catches.length >= req){
+            if (!userUnlockedAchievements.includes(num) && userAllCatches.length >= req){
                 unlock(num)
             }
         });
@@ -324,7 +326,7 @@ const checkAchievements = async function(user) {
     // 46 : Catch a Vaporeon
     // 47 : Catch 9 Vaporeon
     if ([46, 47].some(num => !userUnlockedAchievements.includes(num))) {
-        const vaporeonCount = user.catches.filter(c => c.code === "0134").length;
+        const vaporeonCount = userAllCatches.filter(c => c.code === "0134").length;
         if (!userUnlockedAchievements.includes(46) && vaporeonCount >= 1) {
             unlock(46);
         }

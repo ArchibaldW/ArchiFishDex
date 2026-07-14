@@ -4,7 +4,8 @@ export const fisherService = {
     getUserPokedex,
     getUserStatistics,
     getUserAchievements,
-    getLeaderboards
+    getLeaderboards,
+    getUserLastCatches
 }
 
 async function getUserPokedex(): Promise<any> {
@@ -39,6 +40,27 @@ async function getUserAchievements(): Promise<any> {
 
 async function getLeaderboards(): Promise<any> {
   return fetch(`${useRuntimeConfig().public.apiBaseUrl}/api/users/leaderboards/`, requestOptions.get() as RequestInit)
+    .then((res) => {
+      return handle.response(res);
+    })
+    .catch((error) => {
+      handle.error(error);
+    });
+}
+
+async function getUserCatches(): Promise<any> {
+  return fetch(`${useRuntimeConfig().public.apiBaseUrl}/api/usercatches/`, requestOptions.get() as RequestInit)
+    .then((res) => {
+      return handle.response(res);
+    })
+    .catch((error) => {
+      handle.error(error);
+    });
+}
+
+
+async function getUserLastCatches(): Promise<any> {
+  return fetch(`${useRuntimeConfig().public.apiBaseUrl}/api/usercatches/last/`, requestOptions.get() as RequestInit)
     .then((res) => {
       return handle.response(res);
     })

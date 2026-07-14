@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const userRoutes = require('./routes/userRoutes.js');
-const catchRoutes = require('./routes/catchRoutes.js');
+const userCatchRoutes = require('./routes/userCatchRoutes.js');
 const authRoutes = require('./routes/authRoutes.js');
 const dsn = require('./utils/dsn.js')
 
@@ -35,7 +35,7 @@ app.use(express.json());
 
 // Api routes
 app.use('/api/users', userRoutes);
-app.use('/api/catches', catchRoutes);
+app.use('/api/usercatches', userCatchRoutes);
 app.use('/api/auth', authRoutes);
 
 const PORT = process.env.PORT || 5000;

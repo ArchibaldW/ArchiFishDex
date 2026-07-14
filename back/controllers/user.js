@@ -1,12 +1,14 @@
+const mongoose = require('mongoose');
 const Catch = require('../models/Catch');
 const User = require('../models/User');
+const UserCatch = require('../models/UserCatch');
 const Achievement = require('../models/Achievement');
 const checkAchievements = require('../utils/checkAchievements.js')
 
 exports.getUserPokedex = async (req, res) => {
   try {
-    const user = await User.findOne({_id: req.user.username});
-    if (!user){
+    const userCatches = await UserCatch.find({ username: req.user.username }).lean();
+    if (!userCatches){
       return res.status(404).json({error : "Vous n'avez encore rien pêché"})
     }
 
@@ -15,7 +17,7 @@ exports.getUserPokedex = async (req, res) => {
     const normalCounts = new Map();
     const shinyCounts = new Map();
 
-    user.catches.forEach(c => {
+    userCatches.forEach(c => {
       const targetMap = c.shiny ? shinyCounts : normalCounts;
       const currentCount = targetMap.get(c.code) || 0;
       targetMap.set(c.code, currentCount + 1);
@@ -42,14 +44,14 @@ exports.getUserPokedex = async (req, res) => {
 
 exports.getUserStatistics = async (req, res) => {
   try {
-    const user = await User.findOne({_id: req.user.username});
-    if (!user){
+    const userCatches = await UserCatch.find({username: req.user.username});
+    if (!userCatches || userCatches.length === 0) {
       return res.status(404).json({error : "Vous n'avez encore rien pêché"})
     }
 
     const catches = await Catch.find({}).lean();
-    const normalSet = new Set(user.catches.filter(c => !c.shiny).map(c => c.code));
-    const shinySet = new Set(user.catches.filter(c => c.shiny).map(c => c.code));
+    const normalSet = new Set(userCatches.filter(c => !c.shiny).map(c => c.code));
+    const shinySet = new Set(userCatches.filter(c => c.shiny).map(c => c.code));
 
     const statsGlobal = {
       total : catches.length,
@@ -191,12 +193,13 @@ exports.getUserAchievements = async (req, res) => {
 exports.getLeaderboards = async (req, res) => {
   try {
     const users = await User.find({}).lean();
+    const userCatches = await UserCatch.find({}).lean();
 
     // Leaderboard 1: Total catches
     const totalCatches = users
       .map(user => ({
         username: user._id,
-        total: user.catches ? user.catches.length : 0
+        total: userCatches.filter(c => c.username === user._id).length
       }))
       .filter(user => user.username !== "archibaldwirslayd")
       .sort((a, b) => b.total - a.total)
@@ -209,7 +212,7 @@ exports.getLeaderboards = async (req, res) => {
     // Leaderboard 2: Unique catches
     const uniqueCatches = users
       .map(user => {
-        const uniqueCodes = new Set(user.catches ? user.catches.map(c => c.code) : []);
+        const uniqueCodes = new Set(userCatches.filter(c => c.username === user._id).map(c => c.code));
         return {
           username: user._id,
           unique: uniqueCodes.size
@@ -263,27 +266,34 @@ exports.getLeaderboards = async (req, res) => {
   }
 }
 
-
 exports.addUserCatch = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
-    const { pseudo, catch: catchData } = req.body;
-    let user = await User.findOne({_id : pseudo});
+    const catchData = req.body;
+    const username = catchData.username;
+    let user = await User.findOne({_id : username}).session(session);
 
     if(!user) {
       user = new User({
-        _id: pseudo,
-        catches: [catchData]
+        _id: username
       })
-    } else {
-      user.catches.push(catchData)
     }
+
+    const newCatch = new UserCatch(catchData);
 
     const {achievementsOwned, user : newUser} = await checkAchievements(user)
 
-    await newUser.save()
+    await session.commitTransaction();
+
+    await newUser.save({ session })
+    await newCatch.save({ session })
     return res.status(201).json({achievements : achievementsOwned})
   } catch (err) {
+    await session.abortTransaction();
     console.log(err)
     return res.status(500).json({ error: err.message });
+  } finally {
+    session.endSession();
   }
 }

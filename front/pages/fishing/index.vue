@@ -1,6 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { useUserStore } from '~/store';
+import Dashboard from '~/sub-components/pages/fishing/Dashboard.vue';
 import Pokedex from '~/sub-components/pages/fishing/Pokedex.vue';
 import Statistics from '~/sub-components/pages/fishing/Statistics.vue';
 import Achievements from '~/sub-components/pages/fishing/Achievements.vue';
@@ -12,6 +13,7 @@ const router = useRouter()
 
 const selectedTab = ref('')
 const tabList = [
+    // {label : 'Tableau de bord', value : 'dashboard'},
     {label : 'Pokédex', value : 'pokedex'},
     {label : 'Statistiques', value : 'statistics'},
     {label : 'Succès', value : 'achievements'},
@@ -31,6 +33,7 @@ onBeforeMount(async () => {
             <v-tab v-for="tab in tabList" :key="tab.value" :value="tab.value">{{ tab.label }}</v-tab>
         </v-tabs>
         <div class="fishing-container__content">
+          <!-- <Dashboard v-if="selectedTab === 'dashboard'"/> -->
           <Pokedex v-if="selectedTab === 'pokedex'"/>
           <Statistics v-else-if="selectedTab === 'statistics'"/>
           <Achievements v-else-if="selectedTab === 'achievements'"/>

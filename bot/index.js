@@ -83,7 +83,7 @@ const { jwtDecode } = require('jwt-decode');
 
   
 
-  const fishingRegex = /^Félicitation @(.+?) tu as attrapé un (.+?) qui pèse (.+?) et vaut (.+?) de pognon! Tu as désormais (.+?) de pognon!/;
+  const fishingRegex = /^Félicitation @(.+?) tu as attrapé un (.+?) qui pèse (.+?)kg et vaut (.+?) de pognon! Tu as désormais (.+?) de pognon!/;
 
   const specialCases = [
     // 1G
@@ -197,10 +197,16 @@ const { jwtDecode } = require('jwt-decode');
         const match = msg.match(fishingRegex);
 
         if (match) {
-          const capturedUser = match[1].toLowerCase();
           const capturedCatch = match[2];
 
-          let finalFish = {code : '', shiny : false};
+          let finalFish = {
+            username : match[1].toLowerCase(), 
+            weight : match[3],
+            value : match[4],
+            date : new Date().toISOString(),
+            code : '', 
+            shiny : false
+          };
 
           finalFish.shiny = capturedCatch.includes('(Shiny)');
 
@@ -226,10 +232,7 @@ const { jwtDecode } = require('jwt-decode');
           try {
             const res = await fetch(`${process.env.API_URL}/api/users/catch`, {
               method: 'POST',
-              body: JSON.stringify({
-                'pseudo' : capturedUser,
-                'catch' : finalFish
-              }),
+              body: JSON.stringify(finalFish),
               headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiToken}`
@@ -238,7 +241,7 @@ const { jwtDecode } = require('jwt-decode');
             if (!res.ok) throw new Error('Erreur API');
             const result = await res.json()
             result.achievements.forEach(achievement => {
-              twitchService.say(`Ding dong @${capturedUser}, tu as réussi le succès #${achievement.number} : ${achievement.name} - ${achievement.description} (${achievement.value} points)`);
+              twitchService.say(`Ding dong @${match[1]}, tu as réussi le succès #${achievement.number} : ${achievement.name} - ${achievement.description} (${achievement.value} points)`);
             });
           } catch (error) {
             console.error(error);
