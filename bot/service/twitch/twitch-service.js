@@ -58,6 +58,8 @@ class TwitchService {
   }
 
   start = async (username, password, channel) => {
+    this.username = username;
+    this.password = password;
     this.channel = channel;
 
     const opts = {
@@ -121,6 +123,22 @@ class TwitchService {
       });
     }
   };
+
+  async reconnectWithToken(newToken) {
+    if (!this.client) return;
+
+    console.log("TwitchService : reconnecting with refreshed token");
+
+    this.password = newToken;
+
+    try {
+      await this.client.disconnect();
+    } catch (err) {
+      console.warn("TwitchService: erreur lors du disconnect", err);
+    }
+
+    await this.start(this.username, this.password, this.channel);
+  }
 
   
   // fake a msg from twitch

@@ -13,6 +13,7 @@ class TwitchTurpleService {
     this.apiClient = null;
     this.channel = "";
     this.userId = "";
+    this.onTokenRefresh = null;
   }
 
   /**
@@ -24,10 +25,12 @@ class TwitchTurpleService {
     clientSecret,
     accessToken,
     refreshToken,
-    channel
+    channel,
+    onTokenRefresh
   ) => {
     this.channel = channel;
     this.userId = userId;
+    this.onTokenRefresh = onTokenRefresh;
 
     let tokenData = null;
 
@@ -35,6 +38,12 @@ class TwitchTurpleService {
         try {
             tokenData = JSON.parse(fs.readFileSync(TOKEN_FILE, 'UTF-8'));
             console.log("📂 Tokens chargés depuis tokens.json (Sauvegarde locale)");
+            console.log("🔐 tokenData details:", {
+              hasAccessToken: !!tokenData.accessToken,
+              hasRefreshToken: !!tokenData.refreshToken,
+              expiresIn: tokenData.expiresIn,
+              obtainmentTimestamp: tokenData.obtainmentTimestamp
+            });
         } catch(e) {
             console.error("Erreur lecture tokens.json, retour au .env");
         }
@@ -60,15 +69,28 @@ class TwitchTurpleService {
     this.authProvider = new RefreshingAuthProvider({
       clientId,
       clientSecret,
-      onRefresh: async (userId, newTokenData) => {
-        const dataToSave = {
-            accessToken: newTokenData.accessToken,
-            refreshToken: newTokenData.refreshToken,
-            expiresIn: newTokenData.expiresIn,
-            obtainmentTimestamp: newTokenData.obtainmentTimestamp
-        };
-        fs.writeFileSync(TOKEN_FILE, JSON.stringify(dataToSave, null, 4), 'UTF-8');
-        console.log("💾 Tokens rafraîchis et sauvegardés dans tokens.json !");
+    });
+
+    this.authProvider.onRefresh(async (userId, newTokenData) => {
+      const dataToSave = {
+          accessToken: newTokenData.accessToken,
+          refreshToken: newTokenData.refreshToken,
+          expiresIn: newTokenData.expiresIn,
+          obtainmentTimestamp: newTokenData.obtainmentTimestamp
+      };
+      fs.writeFileSync(TOKEN_FILE, JSON.stringify(dataToSave, null, 4), 'UTF-8');
+      console.log("💾 Tokens rafraîchis et sauvegardés dans tokens.json !");
+      console.log("🔄 onRefresh callback fired:", {
+        accessTokenPresent: !!newTokenData.accessToken,
+        refreshTokenPresent: !!newTokenData.refreshToken,
+        expiresIn: newTokenData.expiresIn,
+        obtainmentTimestamp: newTokenData.obtainmentTimestamp
+      });
+
+      if (typeof this.onTokenRefresh === 'function') {
+        this.onTokenRefresh(newTokenData.accessToken);
+      } else {
+        console.warn("⚠️ onTokenRefresh is not a function", typeof this.onTokenRefresh);
       }
     });
 
@@ -76,6 +98,8 @@ class TwitchTurpleService {
       tokenData,
       ['chat']
     );
+
+    console.log("🔐 Twitch authProvider initialisé avec tokenData");
 
     // Initialisation du client d'API pour d'éventuels appels simples
     this.apiClient = new ApiClient({
@@ -91,6 +115,7 @@ class TwitchTurpleService {
     console.log(`✅ TwitchTurpleService : Bot prêt sur la chaîne #${this.channel}`);
 
     const currentToken = await this.authProvider.getAccessTokenForUser(this.userId);
+    console.log("🔐 getAccessTokenForUser result:", currentToken ? "OK" : "EMPTY");
     return currentToken ? currentToken.accessToken : accessToken;
   };
 

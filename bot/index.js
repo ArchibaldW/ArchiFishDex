@@ -4,6 +4,8 @@ const botWebSocket = require("./service/bot/botWebSocket.js");
 const { jwtDecode } = require('jwt-decode');
 
 (async () => {
+  const twitchService = new TwitchService();
+
   const twitchTurpleService = new TwitchTurpleService();
   const freshAccessToken = await twitchTurpleService.start(
     process.env.TWITCH_USER_ID,
@@ -12,14 +14,17 @@ const { jwtDecode } = require('jwt-decode');
     process.env.ACCESS_TOKEN,
     process.env.REFRESH_TOKEN,
     process.env.TWITCH_CHANNEL_NAME,
-    process.env.TWITCH_BOT_USERNAME
+    (newAccessToken) => {
+      console.log("✅ Token Twitch rafraîchi, reconnexion tmi.js");
+      twitchService.reconnectWithToken(`oauth:${newAccessToken}`);
+    }
   );
+  console.log("✅ freshAccessToken reçu :", freshAccessToken ? "OK" : "MANQUANT");
   console.log(
     "TwitchService → Track chat from: from: https://twitch.tv/" +
       process.env.TWITCH_BOT_USERNAME
   );
 
-  const twitchService = new TwitchService();
   await twitchService.start(
     process.env.TWITCH_BOT_USERNAME,
     `oauth:${freshAccessToken}`,
