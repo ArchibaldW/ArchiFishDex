@@ -16,7 +16,7 @@ const starters = [
 const megas = ["0009m", "0080m", "0130m", "0260m", "0319m", "0382p"];
 
 const checkAchievements = async function(user, session) {
-    const userAllCatches = await UserCatch.find({username: user.username}).session(session).lean();
+    const userAllCatches = await UserCatch.find({username: user._id}).session(session).lean();
     const catches = await Catch.find({}).session(session).lean();
     const achievementsList = await Achievement.find({}).session(session).lean();
     achievementsList.sort((a, b) => a.number - b.number)
