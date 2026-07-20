@@ -3,6 +3,7 @@ const Catch = require('../models/Catch');
 const User = require('../models/User');
 const UserCatch = require('../models/UserCatch');
 const Achievement = require('../models/Achievement');
+const numbers = require('../utils/numbers.js');
 const checkAchievements = require('../utils/checkAchievements.js')
 
 exports.getUserPokedex = async (req, res) => {
@@ -265,9 +266,22 @@ exports.addUserCatch = async (req, res) => {
   session.startTransaction();
 
   try {
-    const catchData = req.body;
-    const username = catchData.username;
+    const catchData = {
+      ...req.body,
+      weight: numbers.parseNumericValue(req.body.weight),
+      value: numbers.parseNumericValue(req.body.value)
+    };
 
+    if (catchData.weight === null || catchData.value === null) {
+      await session.abortTransaction();
+      return res.status(400).json({ error: 'Invalid numeric fields for weight or value' });
+    }
+
+    const newCatch = new UserCatch(catchData);
+    await newCatch.save({ session })
+
+    
+    const username = catchData.username;
     let user = await User.findOne({_id : username}).session(session);
 
     if(!user) {
@@ -278,10 +292,7 @@ exports.addUserCatch = async (req, res) => {
 
     const {achievementsOwned, user : newUser} = await checkAchievements(user, session)
 
-    const newCatch = new UserCatch(catchData);
-
     await newUser.save({ session })
-    await newCatch.save({ session })
 
     await session.commitTransaction();
     
