@@ -198,7 +198,7 @@ const { jwtDecode } = require('jwt-decode');
   const specialCasesMap = new Map(specialCases.map(item => [item.name, item.code]));
   twitchService.addOnMessage(
     async (msg, context) => {
-      if (context.username === process.env.TWITCH_CHANNEL_NAME) {
+      if (context.username === process.env.TWITCH_BOT_USERNAME) {
         const match = msg.match(fishingRegex);
 
         if (match) {
