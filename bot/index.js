@@ -135,8 +135,8 @@ const { jwtDecode } = require('jwt-decode');
     { "code": "0201x", "name": "Zarbi X" },
     { "code": "0201y", "name": "Zarbi Y" },
     { "code": "0201z", "name": "Zarbi Z" },
-    { "code": "0201z1", "name": "Zarbi ?" },
-    { "code": "0201z2", "name": "Zarbi !" },
+    { "code": "0201z1", "name": "Zarbi Question" },
+    { "code": "0201z2", "name": "Zarbi Exclamation" },
     { "code": "0212m", "name": "Méga-Cizayox" },
 
     // 3G
