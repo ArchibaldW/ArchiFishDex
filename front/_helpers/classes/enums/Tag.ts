@@ -5,5 +5,6 @@ export enum Tag {
   starter = 'Starters',
   favorite = 'Favoris',
   variant = 'Variantes',
-  gigamax = 'Gigamax'
+  gigamax = 'Gigamax',
+  'ultra-beast' = 'Ultra-Chimères'
 }
