@@ -36,7 +36,7 @@ J'ai conçu cet écosystème pour offrir une **consultation asynchrone**. Les vi
 
 Le flux de données se déroule en 4 étapes clés :
 
-1. **Jeu de pêche tiers ([Lurk Bait Twitch Fishing](https://blam.cam/))** : Les viewers interagissent avec le jeu directement sur le stream. Le jeu a été **entièrement customisé** pour l'univers Pokémon : il permet exclusivement la capture de Pokémon de type Eau ou appartenant à un groupe d'œufs aquatique. Avec **230 Pokémon disponibles** (en version normale et *shiny*), le jeu intègre leurs vrais cris, leurs poids réels, ainsi qu'une valeur liée à leur rareté. Une fois le Pokémon attrapé, le jeu annonce la capture dans le chat Twitch.
+1. **Jeu de pêche tiers ([Lurk Bait Twitch Fishing](https://blam.cam/))** : Les viewers interagissent avec le jeu directement sur le stream. Le jeu a été **entièrement customisé** pour l'univers Pokémon : il permet exclusivement la capture de Pokémon de type Eau ou appartenant à un groupe d'œufs aquatique. Avec **420 Pokémon disponibles** (en version normale et *shiny*), le jeu intègre leurs vrais cris, leurs poids réels, ainsi qu'une valeur liée à leur rareté. Une fois le Pokémon attrapé, le jeu annonce la capture dans le chat Twitch.
 2. **Bot Twitch** : Écoute le chat en permanence, détecte les messages de capture validés par le jeu et extrait les données du joueur et du Pokémon capturé. Il se charge également d'annoncer dans le chat les succès obtenus par un joueur après une capture.
 3. **Backend** : Reçoit les données du bot et met à jour la base de données en ajoutant la capture au profil de l'utilisateur. Les succès sont calculés en temps réel lors de cette étape : si un joueur débloque un succès, le backend renvoie un message au bot pour qu'il l'affiche instantanément dans le chat Twitch. Ces données sont également rendues disponibles pour l'application web.
 4. **Frontend** : Récupère les données du backend pour afficher l'évolution, la collection et les succès des joueurs en temps réel.
@@ -109,7 +109,7 @@ La compétition est à l'honneur avec **4 classements distincts** pour comparer 
 Le backend s'appuie sur une base de données **MongoDB** hébergée sur Atlas. Elle contient des collections de référence constituées à la main, qui correspondent exactement aux fichiers internes du jeu customisé.
 
 ### 1. Collection `Pokemons` (Dictionnaire de référence)
-Cette collection liste les 230 Pokémon disponibles dans le jeu. Elle intègre un système de `tags`, de générations et de types qui permet au frontend de proposer des options de filtres très poussées.
+Cette collection liste les 420 Pokémon disponibles dans le jeu. Elle intègre un système de `tags`, de générations et de types qui permet au frontend de proposer des options de filtres très poussées.
 
 ```json
 {
@@ -153,7 +153,7 @@ Tout comme les Pokémon, les succès sont pré-enregistrés dans la base. Le bac
 
 ## <a id="format-de-detection"></a>🎣 Format de détection (Le Bot en détail)
 
-Le module `/bot` écoute les messages générés par **Lurk Bait** dans le chat Twitch lié à mon pseudo (ArchibaldWirslayd). Il utilise une expression régulière spécifique pour capter les annonces :
+Le module `/bot` écoute les messages générés par **Lurk Bait** dans le chat Twitch lié au pseudo de mon bot (EvoliSauvage). Il utilise une expression régulière spécifique pour capter les annonces :
 
 > `^Félicitation @(.+?) tu as attrapé un (.+?) qui pèse (.+?) et vaut (.+?) de pognon! Tu as désormais (.+?) de pognon!`
 
