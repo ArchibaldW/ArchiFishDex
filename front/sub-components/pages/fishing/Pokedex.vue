@@ -1,20 +1,89 @@
 <script setup>
 import { fisherService } from '~/_services';
 import { Tag, Type } from '~/_helpers';
+import { useUserStore } from '~/store';
+
+const props = defineProps({
+  initialUsername: { type: String, default: '' }
+});
 
 const pokedex = ref([])
+const pokedexUsers = ref([])
 const ready = ref(false)
+const loadError = ref('');
+const usersError = ref('');
 const searchName = ref('');
 const filterCaught = ref('all');
 const sortBy = ref('id_asc')
 const selectedGen = ref(null);
 const selectedTag = ref(null);
 const selectedTypes = ref([]);
+const selectedPokedex = ref(props.initialUsername ? `user:${props.initialUsername}` : 'mine');
+const userStore = useUserStore();
+const { user } = storeToRefs(userStore);
+
+const pokedexViewOptions = computed(() => [
+  { title: 'Mon Pokédex', value: 'mine' },
+  { title: 'Pokédex global', value: 'global' },
+  ...pokedexUsers.value
+    .filter(pokedexUser => pokedexUser.username !== user.value?.username)
+    .map(pokedexUser => ({
+      title: pokedexUser.displayName || pokedexUser.username,
+      value: `user:${pokedexUser.username}`
+    }))
+]);
+
+const pokedexTitle = computed(() => {
+  if (selectedPokedex.value === 'global') return 'Pokédex global';
+  if (selectedPokedex.value.startsWith('user:')) {
+    const username = selectedPokedex.value.slice(5);
+    const pokedexUser = pokedexUsers.value.find(user => user.username === username);
+    return `Pokédex de ${pokedexUser?.displayName || username}`;
+  }
+  return 'Ton Pokédex';
+});
+
+async function loadPokedex() {
+  ready.value = false;
+  loadError.value = '';
+
+  try {
+    let result;
+
+    if (selectedPokedex.value === 'global') {
+      result = await fisherService.getUserPokedex({ global: true });
+    } else if (selectedPokedex.value.startsWith('user:')) {
+      result = await fisherService.getUserPokedex({
+        username: selectedPokedex.value.slice(5)
+      });
+    } else {
+      result = await fisherService.getUserPokedex();
+    }
+
+    if (!Array.isArray(result)) {
+      throw new Error(result?.error || 'Impossible de charger ce Pokédex.');
+    }
+
+    pokedex.value = result;
+  } catch (error) {
+    pokedex.value = [];
+    loadError.value = error instanceof Error ? error.message : 'Impossible de charger ce Pokédex.';
+  } finally {
+    ready.value = true;
+  }
+}
 
 onBeforeMount(async () => {
-  pokedex.value = await fisherService.getUserPokedex();
-  ready.value = true
+  const users = await fisherService.getPokedexUsers();
+  if (Array.isArray(users)) {
+    pokedexUsers.value = users;
+  } else {
+    usersError.value = users?.error || 'Impossible de charger la liste des utilisateurs.';
+  }
+  await loadPokedex();
 });
+
+watch(selectedPokedex, loadPokedex);
 
 function codeOnlyNumber(code){
   const match = code.match(/^(\d{4})/);
@@ -131,9 +200,27 @@ const showShiny = ref(false)
 
 <template>
   <div class="container">
-    <h1 class="title">Ton Pokédex</h1>
+    <h1 class="title">{{ pokedexTitle }}</h1>
+    <v-alert v-if="usersError" type="warning" class="pokedex-message">
+      {{ usersError }}
+    </v-alert>
+    <v-alert v-if="loadError" type="error" class="pokedex-message">
+      {{ loadError }}
+    </v-alert>
     <template v-if="ready">
       <div class="filters">
+        <v-select
+          v-model="selectedPokedex"
+          :items="pokedexViewOptions"
+          item-title="title"
+          item-value="value"
+          label="Pokédex"
+          variant="outlined"
+          density="compact"
+          hide-details
+          class="pokedex-select"
+        />
+
         <v-chip-group 
           v-model="showShiny" 
           mandatory 
@@ -240,7 +327,7 @@ const showShiny = ref(false)
             <div v-if="showShiny ? catchItem.countShiny > 1 : catchItem.countNormal > 1" class="pokecards__pokecard__count">
               x {{ showShiny ? catchItem.countShiny : catchItem.countNormal }}
             </div>
-            <v-card-title class="pokecards__pokecard__title">#{{codeOnlyNumber(catchItem.code)}} - {{ catchItem.caughtNormal || catchItem.caughtShiny ? catchItem.name : '???' }}</v-card-title>
+            <v-card-title class="pokecards__pokecard__title">#{{codeOnlyNumber(catchItem.code)}} - {{ (showShiny ? catchItem.caughtShiny : catchItem.caughtNormal) ? catchItem.name : '???' }}</v-card-title>
             <div class="pokecards__pokecard__images">
               <img v-show="!showShiny" class="pokecards__pokecard__image" :src="`/assets/${catchItem.code}.png`" />
               <img v-show="showShiny" class="pokecards__pokecard__image" :src="`/assets/${catchItem.code}s.png`" />
@@ -267,6 +354,17 @@ const showShiny = ref(false)
   margin-bottom: 40px;
   letter-spacing: 1px;
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.pokedex-select {
+  width: 190px;
+  flex: 0 1 190px;
+  color: white;
+}
+
+.pokedex-message {
+  max-width: 900px;
+  margin: 0 auto 20px;
 }
 
 .filters {

@@ -1,6 +1,8 @@
 <script setup>
 import { fisherService } from '~/_services';
 
+const emit = defineEmits(['open-profile']);
+
 const leaderboards = ref({});
 const ready = ref(false);
 
@@ -45,7 +47,13 @@ const leaderboardsData = [
               <span v-else>{{ entry.rank }}</span>
             </div>
             
-            <div class="leaderboard-entry__name">{{ entry.username }}</div>
+            <button
+              class="leaderboard-entry__name"
+              type="button"
+              @click="emit('open-profile', entry.username)"
+            >
+              {{ entry.displayName || entry.username }}
+            </button>
             
             <div class="leaderboard-entry__value">
               {{ 
@@ -138,13 +146,24 @@ const leaderboardsData = [
   }
 
   &__name {
+    padding: 0;
+    border: 0;
     color: white;
+    background: transparent;
+    font-family: inherit;
     font-weight: 600;
     flex-grow: 1;
+    text-align: left;
+    text-decoration: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 14px;
+
+    &:hover {
+      color: #ffcf5c;
+      text-decoration: underline;
+    }
   }
 
   &__value {

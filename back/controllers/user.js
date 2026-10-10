@@ -8,17 +8,22 @@ const checkAchievements = require('../utils/checkAchievements.js')
 
 exports.getUserPokedex = async (req, res) => {
   try {
-    const catches = await Catch.find({}).lean();
+    const { username, global } = req.query;
+    const isGlobal = global === 'true';
+    const targetUsername = username || req.user.username;
 
-    const stats = await UserCatch.aggregate([
-      { $match: { username: req.user.username } },
-      {
-        $group: {
-          _id: { code: "$code", shiny: "$shiny" },
-          count: { $sum: 1 },
-          maxValue: { $max: "$value" }
+    const [catches, stats] = await Promise.all([
+      Catch.find({}).lean(),
+      UserCatch.aggregate([
+        ...(!isGlobal ? [{ $match: { username: targetUsername } }] : []),
+        {
+          $group: {
+            _id: { code: "$code", shiny: "$shiny" },
+            count: { $sum: 1 },
+            maxValue: { $max: "$value" }
+          }
         }
-      }
+      ])
     ]);
 
     const normalData = new Map();
@@ -26,9 +31,9 @@ exports.getUserPokedex = async (req, res) => {
 
     stats.forEach(s => {
       const targetMap = s._id.shiny ? shinyData : normalData;
-      targetMap.set(s._id.code, { 
-        count: s.count, 
-        maxValue: s.maxValue 
+      targetMap.set(s._id.code, {
+        count: s.count,
+        maxValue: s.maxValue
       });
     });
 
@@ -39,15 +44,158 @@ exports.getUserPokedex = async (req, res) => {
       return {
         ...p,
         countNormal: normal.count,
-        maxWeightNormal: normal.maxValue, // Info ajoutée
+        maxWeightNormal: normal.maxValue,
         countShiny: shiny.count,
-        maxWeightShiny: shiny.maxValue,   // Info ajoutée
+        maxWeightShiny: shiny.maxValue,
         caughtNormal: normal.count > 0,
         caughtShiny: shiny.count > 0
       };
     });
 
     return res.status(200).json(pokedex);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+exports.getPokedexUsers = async (req, res) => {
+  try {
+    const usernames = await UserCatch.distinct('username');
+    const users = await User.find({ _id: { $in: usernames } }).select('_id displayName').lean();
+    const displayNames = new Map(users.map(user => [user._id, user.displayName || user._id]));
+    const pokedexUsers = usernames
+      .map(username => ({
+        username,
+        displayName: displayNames.get(username) || username
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
+
+    return res.status(200).json(pokedexUsers);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+exports.getUserProfile = async (req, res) => {
+  try {
+    const username = req.params.username;
+    const [user, firstCatch, lastCatch, bestValueCatch, bestWeightCatch, titleAchievements, catchCounts] = await Promise.all([
+      User.findById(username).select('displayName favoritePokemonCode favoritePokemonShiny achievements selectedTitleAchievementNumber').lean(),
+      UserCatch.findOne({ username }).sort({ date: 1 }).select('date').lean(),
+      UserCatch.findOne({ username }).sort({ date: -1 }).select('date').lean(),
+      UserCatch.findOne({ username }).sort({ value: -1, date: 1 }).select('code shiny value').lean(),
+      UserCatch.findOne({ username }).sort({ weight: -1, date: 1 }).select('code shiny weight').lean(),
+      Achievement.find({ title: { $exists: true, $nin: [null, ''] } }).select('number title').lean(),
+      UserCatch.aggregate([
+        { $match: { username } },
+        { $group: { _id: { code: '$code', shiny: '$shiny' }, count: { $sum: 1 } } },
+        { $sort: { count: -1, '_id.code': 1 } }
+      ])
+    ]);
+
+    if (!user || !firstCatch) {
+      return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    }
+
+    const unlockedNumbers = new Set((user.achievements || []).map(achievement => achievement.number));
+    const unlockedTitles = titleAchievements
+      .filter(achievement => unlockedNumbers.has(achievement.number))
+      .map(({ number, title }) => ({ achievementNumber: number, title }));
+    const selectedTitle = unlockedTitles.find(
+      title => title.achievementNumber === user.selectedTitleAchievementNumber
+    ) || null;
+    const mostCaughtNormal = catchCounts.find(catchCount => !catchCount._id.shiny) || null;
+    const mostCaughtShiny = catchCounts.find(catchCount => catchCount._id.shiny) || null;
+
+    return res.status(200).json({
+      username,
+      displayName: user.displayName || username,
+      favoritePokemonCode: user.favoritePokemonCode || null,
+      favoritePokemonShiny: user.favoritePokemonShiny === true,
+      firstCatchDate: firstCatch.date,
+      lastCatchDate: lastCatch.date,
+      bestValueCatch,
+      bestWeightCatch,
+      mostCaughtNormal: mostCaughtNormal
+        ? { code: mostCaughtNormal._id.code, count: mostCaughtNormal.count }
+        : null,
+      mostCaughtShiny: mostCaughtShiny
+        ? { code: mostCaughtShiny._id.code, count: mostCaughtShiny.count, shiny: true }
+        : null,
+      selectedTitle,
+      unlockedTitles
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const { displayName, achievementNumber, favoritePokemonCode, favoritePokemonShiny } = req.body;
+    const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
+    if (!normalizedDisplayName || normalizedDisplayName.length > 32) {
+      return res.status(400).json({ error: 'Le nom d’affichage doit contenir entre 1 et 32 caractères.' });
+    }
+
+    if (favoritePokemonCode !== undefined && favoritePokemonCode !== null && typeof favoritePokemonCode !== 'string') {
+      return res.status(400).json({ error: 'Pokémon préféré invalide.' });
+    }
+    if (favoritePokemonShiny !== undefined && typeof favoritePokemonShiny !== 'boolean') {
+      return res.status(400).json({ error: 'Forme du Pokémon préféré invalide.' });
+    }
+
+    if (achievementNumber !== null && (!Number.isInteger(achievementNumber) || achievementNumber <= 0)) {
+      return res.status(400).json({ error: 'Numéro de succès invalide.' });
+    }
+
+    const user = await User.findById(req.user.username);
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    }
+
+    const nextFavoritePokemonCode = favoritePokemonCode === undefined
+      ? user.favoritePokemonCode || null
+      : favoritePokemonCode;
+    const nextFavoritePokemonShiny = nextFavoritePokemonCode === null
+      ? false
+      : favoritePokemonShiny === undefined
+        ? user.favoritePokemonShiny === true
+        : favoritePokemonShiny;
+    if (nextFavoritePokemonCode !== null && !await Catch.exists({ code: nextFavoritePokemonCode })) {
+      return res.status(400).json({ error: 'Ce Pokémon ne fait pas partie du Pokédex.' });
+    }
+
+    let selectedTitle = null;
+    if (achievementNumber !== null) {
+      const isUnlocked = (user.achievements || []).some(item => item.number === achievementNumber);
+      const achievement = await Achievement.findOne({
+        number: achievementNumber,
+        title: { $exists: true, $nin: [null, ''] }
+      }).select('number title').lean();
+
+      if (!achievement || !isUnlocked) {
+        return res.status(400).json({ error: 'Ce titre n’a pas été débloqué.' });
+      }
+
+      selectedTitle = {
+        achievementNumber: achievement.number,
+        title: achievement.title
+      };
+    }
+
+    user.displayName = normalizedDisplayName;
+    user.favoritePokemonCode = nextFavoritePokemonCode;
+    user.favoritePokemonShiny = nextFavoritePokemonShiny;
+    user.selectedTitleAchievementNumber = achievementNumber;
+    await user.save();
+
+    return res.status(200).json({
+      displayName: user.displayName,
+      favoritePokemonCode: user.favoritePokemonCode,
+      favoritePokemonShiny: user.favoritePokemonShiny,
+      selectedTitle
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -250,11 +398,35 @@ exports.getLeaderboards = async (req, res) => {
         };
       });
 
-    return res.status(200).json({
+    const leaderboards = {
       totalCatches: formatLeaderboard(totalCatchesRaw),
       uniqueCatches: formatLeaderboard(uniqueCatchesRaw),
       achievements: formatLeaderboard(achievementsRaw),
       achievementPoints: formatLeaderboard(achievementPointsRaw)
+    };
+    const usernames = [...new Set(
+      Object.values(leaderboards).flatMap(board => board.map(entry => entry.username))
+    )];
+    const users = await User.find({ _id: { $in: usernames } }).select('_id displayName').lean();
+    const displayNames = new Map(users.map(user => [user._id, user.displayName || user._id]));
+
+    return res.status(200).json({
+      totalCatches: leaderboards.totalCatches.map(entry => ({
+        ...entry,
+        displayName: displayNames.get(entry.username) || entry.username
+      })),
+      uniqueCatches: leaderboards.uniqueCatches.map(entry => ({
+        ...entry,
+        displayName: displayNames.get(entry.username) || entry.username
+      })),
+      achievements: leaderboards.achievements.map(entry => ({
+        ...entry,
+        displayName: displayNames.get(entry.username) || entry.username
+      })),
+      achievementPoints: leaderboards.achievementPoints.map(entry => ({
+        ...entry,
+        displayName: displayNames.get(entry.username) || entry.username
+      }))
     });
     
   } catch (err) {
