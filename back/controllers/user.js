@@ -172,13 +172,15 @@ exports.getUserAchievements = async (req, res) => {
       (user.achievements || []).map(a => [a.number, a.date])
     );
 
-    // 5. Assemblage final
     const enrichedAchievements = achievements.map(achievement => {
       const globalCount = achievementCounts.get(achievement.number) || 0;
+      const unlocked = userAchievementsMap.has(achievement.number);
       
       return {
         ...achievement,
-        unlocked: userAchievementsMap.has(achievement.number),
+        hasTitle: Boolean(achievement.title),
+        title: unlocked ? achievement.title || null : null,
+        unlocked,
         date: userAchievementsMap.get(achievement.number) || null,
         
         percentage: totalUsersWithAchievements > 0 

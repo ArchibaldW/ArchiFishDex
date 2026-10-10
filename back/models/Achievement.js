@@ -5,7 +5,8 @@ const achievementSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, required: true },
   tier: {type : String, required: true},
-  value: {type : Number, required: true}
+  value: {type : Number, required: true},
+  title: {type: String, default: null}
 }, { timestamps: false });
 
 module.exports = mongoose.model("Achievement", achievementSchema);

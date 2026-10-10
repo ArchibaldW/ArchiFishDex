@@ -98,6 +98,22 @@ onBeforeMount(async () => {
       >
         <div class="achievement-row__title">
           #{{ achievement.number }} - {{ achievement.unlocked ? achievement.name : '???' }}
+          <v-tooltip
+            v-if="achievement.hasTitle"
+            :text="achievement.title || ''"
+            :disabled="!achievement.unlocked || !achievement.title"
+            location="top"
+          >
+            <template #activator="{ props }">
+              <v-icon
+                v-bind="props"
+                class="achievement-row__title-icon"
+                icon="mdi-crown"
+                size="18"
+                :aria-label="achievement.unlocked ? `Titre débloqué : ${achievement.title}` : 'Ce succès débloque un titre'"
+              />
+            </template>
+          </v-tooltip>
         </div>
 
         <div class="achievement-row__description">
@@ -235,11 +251,20 @@ onBeforeMount(async () => {
   }
 
   &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 16px;
     font-weight: 700;
     color: white;
     min-width: 500px;
     letter-spacing: 0.5px;
+  }
+
+  &__title-icon {
+    flex: 0 0 auto;
+    color: #ffcf5c;
+    cursor: help;
   }
 
   &__description {
