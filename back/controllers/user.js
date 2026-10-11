@@ -80,7 +80,7 @@ exports.getUserProfile = async (req, res) => {
   try {
     const username = req.params.username;
     const [user, firstCatch, lastCatch, bestValueCatch, bestWeightCatch, titleAchievements, catchCounts] = await Promise.all([
-      User.findById(username).select('displayName favoritePokemonCode favoritePokemonShiny achievements selectedTitleAchievementNumber').lean(),
+      User.findById(username).select('displayName favoritePokemon achievements selectedTitleAchievementNumber').lean(),
       UserCatch.findOne({ username }).sort({ date: 1 }).select('date').lean(),
       UserCatch.findOne({ username }).sort({ date: -1 }).select('date').lean(),
       UserCatch.findOne({ username }).sort({ value: -1, date: 1 }).select('code shiny value').lean(),
@@ -110,8 +110,10 @@ exports.getUserProfile = async (req, res) => {
     return res.status(200).json({
       username,
       displayName: user.displayName || username,
-      favoritePokemonCode: user.favoritePokemonCode || null,
-      favoritePokemonShiny: user.favoritePokemonShiny === true,
+      favoritePokemon: {
+        code: user.favoritePokemon?.code || null,
+        shiny: user.favoritePokemon?.shiny === true
+      },
       firstCatchDate: firstCatch.date,
       lastCatchDate: lastCatch.date,
       bestValueCatch,
@@ -132,17 +134,20 @@ exports.getUserProfile = async (req, res) => {
 
 exports.updateUserProfile = async (req, res) => {
   try {
-    const { displayName, achievementNumber, favoritePokemonCode, favoritePokemonShiny } = req.body;
+    const { displayName, achievementNumber, favoritePokemon } = req.body;
     const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
     if (!normalizedDisplayName || normalizedDisplayName.length > 32) {
       return res.status(400).json({ error: 'Le nom d’affichage doit contenir entre 1 et 32 caractères.' });
     }
 
-    if (favoritePokemonCode !== undefined && favoritePokemonCode !== null && typeof favoritePokemonCode !== 'string') {
+    if (favoritePokemon !== undefined && (
+      !favoritePokemon ||
+      typeof favoritePokemon !== 'object' ||
+      Array.isArray(favoritePokemon) ||
+      (favoritePokemon.code !== null && typeof favoritePokemon.code !== 'string') ||
+      typeof favoritePokemon.shiny !== 'boolean'
+    )) {
       return res.status(400).json({ error: 'Pokémon préféré invalide.' });
-    }
-    if (favoritePokemonShiny !== undefined && typeof favoritePokemonShiny !== 'boolean') {
-      return res.status(400).json({ error: 'Forme du Pokémon préféré invalide.' });
     }
 
     if (achievementNumber !== null && (!Number.isInteger(achievementNumber) || achievementNumber <= 0)) {
@@ -154,15 +159,16 @@ exports.updateUserProfile = async (req, res) => {
       return res.status(404).json({ error: 'Utilisateur introuvable.' });
     }
 
-    const nextFavoritePokemonCode = favoritePokemonCode === undefined
-      ? user.favoritePokemonCode || null
-      : favoritePokemonCode;
-    const nextFavoritePokemonShiny = nextFavoritePokemonCode === null
-      ? false
-      : favoritePokemonShiny === undefined
-        ? user.favoritePokemonShiny === true
-        : favoritePokemonShiny;
-    if (nextFavoritePokemonCode !== null && !await Catch.exists({ code: nextFavoritePokemonCode })) {
+    const nextFavoritePokemon = favoritePokemon === undefined
+      ? {
+          code: user.favoritePokemon?.code || null,
+          shiny: user.favoritePokemon?.shiny === true
+        }
+      : {
+          code: favoritePokemon.code,
+          shiny: favoritePokemon.code === null ? false : favoritePokemon.shiny
+        };
+    if (nextFavoritePokemon.code !== null && !await Catch.exists({ code: nextFavoritePokemon.code })) {
       return res.status(400).json({ error: 'Ce Pokémon ne fait pas partie du Pokédex.' });
     }
 
@@ -185,15 +191,13 @@ exports.updateUserProfile = async (req, res) => {
     }
 
     user.displayName = normalizedDisplayName;
-    user.favoritePokemonCode = nextFavoritePokemonCode;
-    user.favoritePokemonShiny = nextFavoritePokemonShiny;
+    user.favoritePokemon = nextFavoritePokemon;
     user.selectedTitleAchievementNumber = achievementNumber;
     await user.save();
 
     return res.status(200).json({
       displayName: user.displayName,
-      favoritePokemonCode: user.favoritePokemonCode,
-      favoritePokemonShiny: user.favoritePokemonShiny,
+      favoritePokemon: user.favoritePokemon,
       selectedTitle
     });
   } catch (err) {

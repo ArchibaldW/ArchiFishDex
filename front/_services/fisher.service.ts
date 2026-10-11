@@ -46,8 +46,8 @@ async function getUserProfile(username: string): Promise<any> {
     });
 }
 
-async function updateUserProfile(displayName: string, achievementNumber: number | null, favoritePokemonCode: string | null, favoritePokemonShiny: boolean): Promise<any> {
-  return fetch(`${useRuntimeConfig().public.apiBaseUrl}/api/users/profile/`, requestOptions.patch({ displayName, achievementNumber, favoritePokemonCode, favoritePokemonShiny }) as RequestInit)
+async function updateUserProfile(displayName: string, achievementNumber: number | null, favoritePokemon: { code: string | null; shiny: boolean }): Promise<any> {
+  return fetch(`${useRuntimeConfig().public.apiBaseUrl}/api/users/profile/`, requestOptions.patch({ displayName, achievementNumber, favoritePokemon }) as RequestInit)
     .then((res) => {
       return handle.response(res);
     })

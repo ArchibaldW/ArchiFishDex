@@ -13,8 +13,7 @@ const loadError = ref('');
 const editError = ref('');
 const selectedTitleAchievementNumber = ref(null);
 const draftDisplayName = ref('');
-const draftFavoritePokemonCode = ref(null);
-const draftFavoritePokemonShiny = ref(false);
+const draftFavoritePokemon = ref({ code: null, shiny: false });
 const editing = ref(false);
 const savingProfile = ref(false);
 const ready = ref(false);
@@ -28,10 +27,13 @@ function pokemonName(catchItem) {
   return pokemonByCode.value.get(catchItem.code)?.name || `#${catchItem.code}`;
 }
 
-const pokemonOptions = computed(() => pokemonCatalog.value.map(pokemon => ({
-  title: pokemon.name,
-  value: pokemon.code
-})));
+const pokemonOptions = computed(() => pokemonCatalog.value
+  .slice()
+  .sort((a, b) => a.code.toString().localeCompare(b.code.toString()))
+  .map(pokemon => ({
+    title: pokemon.name,
+    value: pokemon.code
+  })));
 
 function spriteUrl(catchItem) {
   return `/assets/${catchItem.code}${catchItem.shiny ? 's' : ''}.png`;
@@ -64,8 +66,10 @@ async function loadProfile() {
     profile.value = profileResult;
     selectedTitleAchievementNumber.value = profileResult.selectedTitle?.achievementNumber ?? null;
     draftDisplayName.value = profileResult.displayName || profileResult.username;
-    draftFavoritePokemonCode.value = profileResult.favoritePokemonCode || null;
-    draftFavoritePokemonShiny.value = profileResult.favoritePokemonShiny === true;
+    draftFavoritePokemon.value = {
+      code: profileResult.favoritePokemon?.code || null,
+      shiny: profileResult.favoritePokemon?.shiny === true
+    };
     pokemonCatalog.value = Array.isArray(catalogResult) ? catalogResult : [];
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : 'Impossible de charger ce profil.';
@@ -77,8 +81,10 @@ async function loadProfile() {
 function startEditing() {
   draftDisplayName.value = profile.value.displayName || profile.value.username;
   selectedTitleAchievementNumber.value = profile.value.selectedTitle?.achievementNumber ?? null;
-  draftFavoritePokemonCode.value = profile.value.favoritePokemonCode || null;
-  draftFavoritePokemonShiny.value = profile.value.favoritePokemonShiny === true;
+  draftFavoritePokemon.value = {
+    code: profile.value.favoritePokemon?.code || null,
+    shiny: profile.value.favoritePokemon?.shiny === true
+  };
   editError.value = '';
   editing.value = true;
 }
@@ -88,8 +94,10 @@ function cancelEditing() {
   editError.value = '';
   draftDisplayName.value = profile.value.displayName || profile.value.username;
   selectedTitleAchievementNumber.value = profile.value.selectedTitle?.achievementNumber ?? null;
-  draftFavoritePokemonCode.value = profile.value.favoritePokemonCode || null;
-  draftFavoritePokemonShiny.value = profile.value.favoritePokemonShiny === true;
+  draftFavoritePokemon.value = {
+    code: profile.value.favoritePokemon?.code || null,
+    shiny: profile.value.favoritePokemon?.shiny === true
+  };
 }
 
 async function saveProfile() {
@@ -108,16 +116,14 @@ async function saveProfile() {
     const result = await fisherService.updateUserProfile(
       normalizedDisplayName,
       selectedTitleAchievementNumber.value,
-      draftFavoritePokemonCode.value,
-      draftFavoritePokemonShiny.value
+      draftFavoritePokemon.value
     );
     if (!result || result.error) {
       throw new Error(result?.error || 'Impossible d’enregistrer le profil.');
     }
 
     profile.value.displayName = result.displayName;
-    profile.value.favoritePokemonCode = result.favoritePokemonCode;
-    profile.value.favoritePokemonShiny = result.favoritePokemonShiny;
+    profile.value.favoritePokemon = result.favoritePokemon;
     profile.value.selectedTitle = result.selectedTitle;
     draftDisplayName.value = result.displayName;
     editing.value = false;
@@ -142,10 +148,10 @@ watch(() => props.username, loadProfile, { immediate: true });
       <header class="profile__header">
         <div class="profile__avatar">
           <img
-            v-if="profile.favoritePokemonCode"
+            v-if="profile.favoritePokemon?.code"
             class="profile__avatar-sprite"
-            :src="`/assets/${profile.favoritePokemonCode}${profile.favoritePokemonShiny ? 's' : ''}.png`"
-            :alt="pokemonName({ code: profile.favoritePokemonCode })"
+            :src="`/assets/${profile.favoritePokemon.code}${profile.favoritePokemon.shiny ? 's' : ''}.png`"
+            :alt="pokemonName({ code: profile.favoritePokemon.code })"
           >
           <v-icon v-else icon="mdi-account" size="42" />
         </div>
@@ -241,7 +247,7 @@ watch(() => props.username, loadProfile, { immediate: true });
       <section v-if="editing" class="profile__favorite-editor" aria-label="Modifier le Pokémon préféré">
         <h2>Pokémon préféré</h2>
         <v-autocomplete
-          v-model="draftFavoritePokemonCode"
+          v-model="draftFavoritePokemon.code"
           :items="pokemonOptions"
           item-title="title"
           item-value="value"
@@ -255,11 +261,11 @@ watch(() => props.username, loadProfile, { immediate: true });
           class="profile__favorite-select"
         />
         <v-checkbox
-          v-model="draftFavoritePokemonShiny"
+          v-model="draftFavoritePokemon.shiny"
           label="Shiny"
           density="compact"
           hide-details
-          :disabled="savingProfile || !draftFavoritePokemonCode"
+          :disabled="savingProfile || !draftFavoritePokemon.code"
           class="profile__favorite-shiny"
         />
       </section>
