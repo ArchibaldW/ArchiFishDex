@@ -106,6 +106,8 @@ exports.getUserProfile = async (req, res) => {
     ) || null;
     const mostCaughtNormal = catchCounts.find(catchCount => !catchCount._id.shiny) || null;
     const mostCaughtShiny = catchCounts.find(catchCount => catchCount._id.shiny) || null;
+    const totalPokemonCaught = catchCounts.reduce((total, catchCount) => total + catchCount.count, 0);
+    const uniquePokemonCaught = new Set(catchCounts.map(catchCount => catchCount._id.code)).size;
 
     return res.status(200).json({
       username,
@@ -116,6 +118,8 @@ exports.getUserProfile = async (req, res) => {
       },
       firstCatchDate: firstCatch.date,
       lastCatchDate: lastCatch.date,
+      uniquePokemonCaught,
+      totalPokemonCaught,
       bestValueCatch,
       bestWeightCatch,
       mostCaughtNormal: mostCaughtNormal

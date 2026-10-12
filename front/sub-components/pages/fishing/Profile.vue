@@ -280,15 +280,29 @@ watch(() => props.username, loadProfile, { immediate: true });
         <article class="profile-card profile-card--date">
           <v-icon icon="mdi-fish" class="profile-card__icon" />
           <div>
-            <h2>Première capture</h2>
+            <h2>Premier Pokémon</h2>
             <p>{{ formatDate(profile.firstCatchDate) }}</p>
           </div>
         </article>
         <article class="profile-card profile-card--date">
           <v-icon icon="mdi-fish" class="profile-card__icon" />
           <div>
-            <h2>Dernière capture</h2>
+            <h2>Dernier Pokémon</h2>
             <p>{{ formatDate(profile.lastCatchDate) }}</p>
+          </div>
+        </article>
+        <article class="profile-card profile-card--date">
+          <v-icon icon="mdi-pokeball" class="profile-card__icon" />
+          <div>
+            <h2>Pokémons pêchés</h2>
+            <p>{{ formatNumber(profile.totalPokemonCaught) }}</p>
+          </div>
+        </article>
+        <article class="profile-card profile-card--date">
+          <v-icon icon="mdi-pokeball" class="profile-card__icon" />
+          <div>
+            <h2>Pokémons différents</h2>
+            <p>{{ formatNumber(profile.uniquePokemonCaught) }}</p>
           </div>
         </article>
       </section>
@@ -552,7 +566,7 @@ watch(() => props.username, loadProfile, { immediate: true });
 
   &__dates {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
     max-width: 1000px;
     margin: 0 auto;
@@ -681,6 +695,7 @@ watch(() => props.username, loadProfile, { immediate: true });
     }
 
     &__dates {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 7px;
     }
 
